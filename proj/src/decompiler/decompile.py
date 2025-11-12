@@ -40,7 +40,7 @@ class Decompiler:
 
     def filter_funcs_by_name(self, funcs, strictness=1):
         '''
-        Filters provided functions based on an hardcoded regex pattert
+        Return functions matching an hardcoded regex pattern from provided json function list
         '''
         rem_f = []
         for f in funcs:
@@ -60,7 +60,7 @@ class Decompiler:
 
     def no_xref_f(self, funcs):
         '''
-        Cleans provided function list from ones with no xrefs
+        Return functions with no xrefs from provided json function list
         '''
         rem_f = []
         for f in funcs:
@@ -77,10 +77,11 @@ class Decompiler:
         fs = json.loads(str(self.r.cmd('aflj')))
         return fs
 
+    # Lazy implementation but seems to work
     def plt_f_sym(self, funcs):
         '''
-        Cleans function list from decompiler "artifacts" consisting of an indirect call to a plt entity
-        (they have a very good reason to exist but they're just noise atm)
+        Return decompiler "artifact" functions consisting of an indirect call to PLT
+        from provided json function list (they have a very good reason to exist but they're just noise atm)
         '''
 
         sec = json.loads(str(self.r.cmd('iSj')))
@@ -88,5 +89,9 @@ class Decompiler:
 
         plt_start = plt_sec[0]['paddr']
         plt_end = plt_sec[-1]['paddr']
+        plt_f = []
 
-        return plt_sec
+        for f in funcs:
+            if f['addr'] in range(plt_start, plt_end):
+                plt_f.append(f)
+        return plt_f
