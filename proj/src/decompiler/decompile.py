@@ -35,7 +35,7 @@ class Decompiler:
         ]
 
         self.f_name_patt = [re.compile(rx) for rx in self.f_name_regex]
-        self.r = r2.open(bin, flags=["-2"])
+        self.r = r2.open(bin, flags=["-2", "-e bin.relocs.apply=true"])
         self.r.cmd('-AA')
 
     def filter_funcs_by_name(self, funcs, strictness=1):

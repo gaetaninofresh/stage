@@ -8,4 +8,4 @@ def full_clean(d: decompile.Decompiler):
 
 if __name__ == '__main__':
     d = decompile.Decompiler('./bin')
-    f = d.enum_f()
+    print(type(d.r))
