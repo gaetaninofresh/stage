@@ -1,4 +1,5 @@
 import decompile
+import graphmaker
 
 
 def full_clean(d: decompile.Decompiler):
@@ -8,4 +9,6 @@ def full_clean(d: decompile.Decompiler):
 
 if __name__ == '__main__':
     d = decompile.Decompiler('./bin')
-    print(type(d.r))
+
+    g = graphmaker.Grapher()
+    g.make_graph(d.r, d.enum_f(), True)

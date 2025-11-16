@@ -1,4 +1,6 @@
 *.tmp
 __pycache__
+__pycache__/*
 juliet-test-suite-c
-
+juliet-test-suite-c/*
+.flake8
