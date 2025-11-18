@@ -78,7 +78,7 @@ class Decompiler:
         return fs
 
     # Lazy implementation but seems to work
-    def plt_f_sym(self, funcs):
+    def plt_sym_f(self, funcs):
         '''
         Return decompiler "artifact" functions consisting of an indirect call to PLT
         from provided json function list (they have a very good reason to exist but they're just noise atm)

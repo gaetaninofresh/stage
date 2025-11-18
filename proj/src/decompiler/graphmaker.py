@@ -5,8 +5,13 @@ import json
 import r2pipe as r2
 
 
+# TODO:
+# - Fix no name functions
+# - Fix reloc calls
+# Issues might/should be tackled upstream in function feeding
+
 class Grapher:
-    def make_graph(
+    def make_call_graph(
         self,
         r: open_sync.open,
         target_fs: list,
@@ -16,9 +21,12 @@ class Grapher:
         g = Graph(directed=True)
 
         f_name = g.new_vp('string')
-        f_addr = g.new_vp('string')
+        f_addr = g.new_vp('int')
+        label = g.new_vp('string')
+
         g.vertex_properties['f_name'] = f_name
         g.vertex_properties['f_addr'] = f_addr
+        g.vertex_properties['label'] = label
 
         v_index = {f_addr[v]: v for v in g.vertices()}
 
@@ -36,9 +44,10 @@ class Grapher:
             else:
                 f_v = v_index[func_addr]
 
+            label[f_v] = f'{hex(f_addr[f_v])} : {f_name[f_v]}'
+
             r.cmd(f's @ {func_addr}')
             xrefs = json.loads(r.cmd('afxj') or '[]')
-
             i = 0
             for xref in [x for x in xrefs if x['type'] == 'CALL']:
                 call_addr = xref['to']
@@ -49,8 +58,6 @@ class Grapher:
                     f_addr[c_v] = call_addr
                     r.cmd(f's @ {call_addr}')
                     f_info = json.loads(r.cmd(f'afij') or '[]')
-
-                    print(f_info)
 
                     if f_info == []:
                         call_name = f'no_name_{++i}'
@@ -63,17 +70,20 @@ class Grapher:
                     c_v = v_index[call_addr]
 
                 g.add_edge(f_v, c_v)
+        return g
 
-        # for v in g.vertices():
-        #    print(f'{v} : {f_addr[v]} - {f_name[v]}')
-        out_dir = './graphs/'
+    def save_graph(self, g: Graph, name, path='./graphs/'):
 
-        g.save(f'{out_dir}/call_graph.dot', fmt='dot')
-        graphviz_draw(g, size=(300, 300), vprops={'label': f_name, 'f_addr': f_addr, 'f_name': f_name}, output=f"{
-                      out_dir}/graph.png", layout="dot")
+        g.save(f'{path}/{name}.dot', fmt='dot')
+
+        vp = g.vertex_properties
+
+        graphviz_draw(g, size=(300, 300), vprops=vp, output=f"{
+                      path}/{name}.png", layout="dot")
 
 
 if __name__ == '__main__':
-    g = Grapher()
+    gm = Grapher()
     d = Decompiler('./bin')
-    g.make_graph(d.r, d.enum_f(), True)
+    g = gm.make_call_graph(d.r, d.enum_f(), True)
+    gm.save_graph(g, 'test')
