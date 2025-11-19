@@ -2,6 +2,7 @@ from graph_tool import Graph
 import tqdm
 import os
 import argparse
+import json
 from pathlib import Path
 from decompile import Decompiler
 from graphmaker import Grapher
@@ -19,6 +20,13 @@ if __name__ == '__main__':
     out = args.out
 
     d = Decompiler(bin)
-    g = Grapher()
+    gm = Grapher()
 
-    fs = d.enum_f()
+    fs = d.filter_funcs(exclude_on_name_re=False)
+
+    print([f['name'] for f in fs])
+    g = gm.make_call_graph(d.r, fs, True)
+    gm.save_graph(g, 'test_closed')
+
+    g = gm.make_call_graph(d.r, d.enum_f(), False)
+    gm.save_graph(g, 'test')

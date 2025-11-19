@@ -8,6 +8,25 @@ import os
 # CURRENT FEATURES
 
 class Decompiler:
+    _default_f_name_regex = [
+        r"vector__",
+        r"\.end__",
+        r"__normal_iterator_",
+        r"\.insert_",
+        r"std::",
+        r"_std",
+        r"std::allocator",
+        r"imp._*",
+        r"sym\.imp\.memset",
+        r"sym\.imp\.atoi",
+        r"sym\.imp\.htons",
+        r"sym\.imp\.inet_addr",
+        r"method\.std::vector.*?\._vector__",
+        r"method\.std::vector.*?vector_.*?",
+    ]
+
+    _default_f_name_patt = [re.compile(rx) for rx in _default_f_name_regex]
+
     def __init__(self, bin: str):
 
         if not os.path.exists(bin):
@@ -17,34 +36,20 @@ class Decompiler:
 
         self.bin = bin
 
-        self.f_name_regex = [
-            r"vector__",
-            r"\.end__",
-            r"__normal_iterator_",
-            r"\.insert_",
-            r"std::",
-            r"_std",
-            r"std::allocator",
-            r"imp._*",
-            r"sym\.imp\.memset",
-            r"sym\.imp\.atoi",
-            r"sym\.imp\.htons",
-            r"sym\.imp\.inet_addr",
-            r"method\.std::vector.*?\._vector__",
-            r"method\.std::vector.*?vector_.*?",
-        ]
-
-        self.f_name_patt = [re.compile(rx) for rx in self.f_name_regex]
         self.r = r2.open(bin, flags=["-2", "-e bin.relocs.apply=true"])
         self.r.cmd('-AA')
 
-    def filter_funcs_by_name(self, funcs, strictness=1):
+    def filter_funcs_by_name(self, funcs, pattern=None):
         '''
         Return functions matching an hardcoded regex pattern from provided json function list
         '''
+
+        if pattern == None:
+            pattern = self._default_f_name_patt
+
         rem_f = []
         for f in funcs:
-            if any(re.search(p, f["name"]) for p in self.f_name_patt):
+            if any(re.search(p, f["name"]) for p in pattern):
                 rem_f.append(f)
         return rem_f
 
@@ -90,8 +95,35 @@ class Decompiler:
         plt_start = plt_sec[0]['paddr']
         plt_end = plt_sec[-1]['paddr']
         plt_f = []
-
         for f in funcs:
             if f['addr'] in range(plt_start, plt_end):
                 plt_f.append(f)
         return plt_f
+
+    # TODO:
+    #  - Enable each filter with flags
+    # Should fix the inconsistent naming
+    def filter_funcs(self,
+                     exclude_plt=True,
+                     exclude_no_xref=True,
+                     exclude_on_name_re=True,
+                     f_name_pattern=None,
+                     r2_func_rename=False
+                     ):
+        '''
+        Applies selected filters to the full function list and returns the 'good' ones 
+        '''
+
+        f = self.enum_f()
+        rem_f = []
+        if exclude_plt:
+            rem_f.extend(self.plt_sym_f(f))
+        if exclude_no_xref:
+            rem_f.extend(self.no_xref_f(f))
+        if exclude_on_name_re:
+            rem_f.extend(self.filter_funcs_by_name(f, pattern=f_name_pattern))
+        if r2_func_rename:
+            self.clean_f_name(f)
+
+        rem_f_keys = {i['addr'] for i in rem_f}
+        return [i for i in f if i['addr'] not in rem_f_keys]
