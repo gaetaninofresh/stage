@@ -100,9 +100,6 @@ class Decompiler:
                 plt_f.append(f)
         return plt_f
 
-    # TODO:
-    #  - Enable each filter with flags
-    # Should fix the inconsistent naming
     def filter_funcs(self,
                      exclude_plt=True,
                      exclude_no_xref=True,
@@ -111,7 +108,7 @@ class Decompiler:
                      r2_func_rename=False
                      ):
         '''
-        Applies selected filters to the full function list and returns the 'good' ones 
+        Applies selected filters to the full function list and returns the 'good' ones
         '''
 
         f = self.enum_f()
@@ -127,3 +124,19 @@ class Decompiler:
 
         rem_f_keys = {i['addr'] for i in rem_f}
         return [i for i in f if i['addr'] not in rem_f_keys]
+
+    def decompile_func(self,
+                       f_addr: int,
+                       file_name=None,
+                       save_location=None,
+                       ):
+        self.r.cmd(f's @ {f_addr}')
+
+        if save_location is not None:
+            if file_name is None:
+                finfo = json.loads(self.r.cmd('afij') or '[]')
+                file_name = finfo[0]['name'] + '.c'
+                print(f'{save_location}/{file_name}')
+            self.r.cmd(f'pdg > {save_location}/{file_name}')
+        else:
+            return self.r.cmd('pdg')

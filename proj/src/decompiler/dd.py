@@ -30,3 +30,6 @@ if __name__ == '__main__':
 
     g = gm.make_call_graph(d.r, d.enum_f(), False)
     gm.save_graph(g, 'test')
+
+    for f in fs:
+        d.decompile_func(f['addr'], save_location='./decompiled_funcs')
