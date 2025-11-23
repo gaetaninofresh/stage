@@ -1,3 +1,4 @@
+from typing import List, Dict, Any, Optional
 from r2pipe import open_sync
 from decompile import Decompiler
 from graph_tool.all import *
@@ -9,6 +10,8 @@ import r2pipe as r2
 # - Fix no name functions
 # - Fix reloc calls
 # Issues might/should be tackled upstream in function feeding
+# - Should graph calls without control over r2 but it's already done like this atm...
+
 
 class Grapher:
     def make_call_graph(
@@ -73,7 +76,7 @@ class Grapher:
                         f_info = json.loads(r.cmd(f'afij') or '[]')
 
                         if f_info == []:
-                            call_name = f'no_name_{++i}'
+                            call_name = f'no_name_f_{++i}'
                         else:
                             call_name = f_info[0].get('name')
                         f_name[c_v] = call_name
@@ -84,19 +87,53 @@ class Grapher:
 
                     e = g.add_edge(f_v, c_v)
                     e_index[_call_addr] = e
-                    call_addr[e] = _call_addr 
+                    call_addr[e] = _call_addr
                     e_label[e] = f'{hex(_call_addr)}'
         return g
 
-    def save_graph(self, g: Graph, name, path='./graphs/'):
+    def make_logic_graph(self,
+                         disasm: Dict[str, Any]
+                         ) -> Graph:
+        '''
+        PLACEHOLDER
+        '''
 
+        g = Graph(directed=True)
+
+        start_addr = g.new_vp('int')
+        end_addr = g.new_vp('int')
+        code = g.new_vp('string')
+        v_label = g.new_vp('string')
+
+        cond = g.new_ep('string')
+        state = g.new_ep('bool')
+        e_label = g.new_ep('string')
+
+        g.vertex_properties['start_addr'] = start_addr
+        g.vertex_properties['end_addr'] = end_addr
+        g.vertex_properties['code'] = code
+        g.vertex_properties['label'] = v_label
+
+        g.edge_properties['cond'] = cond
+        g.edge_properties['state'] = state
+        g.edge_properties['label'] = e_label
+
+        ops = disasm['ops']
+        ops.sort(key=lambda x: x['addr'])  # One can never be too sure
+
+        return g
+
+    def save_graph(self, g: Graph, name, path='./graphs'):
+        '''
+                Saves given graph to path as a .png and as a .dot
+                '''
         g.save(f'{path}/{name}.dot', fmt='dot')
 
         vp = g.vertex_properties
         ep = g.edge_properties
 
         graphviz_draw(g, size=(100, 100), eprops=ep, vprops=vp, output=f"{
-                      path}/{name}.png", layout="dot")
+            path}/{name}.png", layout="dot")
 
 
 if __name__ == '__main__':

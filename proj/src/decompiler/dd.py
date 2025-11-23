@@ -6,13 +6,16 @@ import json
 from pathlib import Path
 from decompile import Decompiler
 from graphmaker import Grapher
+import re
 
+from typing import List, Dict, Any, Optional
+from pprint import pprint
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('bin', type=str)
-    parser.add_argument('-o', "--out", default='./out/',
+    parser.add_argument('-o', "--out", default='./out',
                         action='store', type=str)
 
     args = parser.parse_args()
@@ -24,12 +27,27 @@ if __name__ == '__main__':
 
     fs = d.filter_funcs(exclude_on_name_re=False)
 
-    print([f['name'] for f in fs])
+    # print([f['name'] for f in fs])
     g = gm.make_call_graph(d.r, fs, True)
-    gm.save_graph(g, 'test_closed')
+    gm.save_graph(g, 'test_closed', path=f'{out}/graphs')
 
     g = gm.make_call_graph(d.r, d.enum_f(), False)
-    gm.save_graph(g, 'test')
+    gm.save_graph(g, 'test', path=f'{out}/graphs')
 
     for f in fs:
-        d.decompile_func(f['addr'], save_location='./decompiled_funcs')
+        if not re.match(r'sym\.imp\.*', f['name']):
+            d.decompile_func(f['addr'], save_location=f'{
+                             out}/decompiled_funcs')
+
+            bbs = d.func_basic_blocks(d.disasm_function(f['addr']))
+            print('-'*80)
+            print(f['name'])
+            for b in bbs:
+                pprint(b.start)
+                pprint(b)
+                pprint(b.jump_inst())
+                pprint(b.end)
+            '''
+            g = gm.make_logic_graph(disasm)
+            gm.save_graph(g, f'{f['name']}_logic_graph', path=f'{out}/graphs')
+            '''

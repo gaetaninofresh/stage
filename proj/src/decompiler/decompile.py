@@ -3,9 +3,43 @@ import json
 import re
 from pathlib import Path
 import os
-
-
+from dataclasses import dataclass
+from typing import List, Dict, Any, Optional
 # CURRENT FEATURES
+
+
+@dataclass
+class Instruction:
+    addr: int
+    opcode: str
+    disasm: str
+    size: int
+    type: str
+    jump: Optional[int] = None
+    jump_fail: Optional[int] = None
+
+
+@dataclass
+class BasicBlock:
+    instructions: List[Instruction]
+
+    @property
+    def start(self):
+        return self.instructions[0].addr
+
+    @property
+    def end(self):
+        i = self.instructions[-1]
+        return i.addr + i.size
+
+    @property
+    def size(self):
+        return self.end - self.start
+
+    def jump_inst(self):
+        i = self.instructions[-1]
+        return i if i.jump is not None else None
+
 
 class Decompiler:
     _default_f_name_regex = [
@@ -136,7 +170,49 @@ class Decompiler:
             if file_name is None:
                 finfo = json.loads(self.r.cmd('afij') or '[]')
                 file_name = finfo[0]['name'] + '.c'
-                print(f'{save_location}/{file_name}')
             self.r.cmd(f'pdg > {save_location}/{file_name}')
         else:
             return self.r.cmd('pdg')
+
+    def disasm_function(self, f_addr: int):
+        return json.loads(self.r.cmd(f'ss {f_addr}; pdfj') or '[]')
+
+    def func_basic_blocks(self, disasm):
+        ops = disasm['ops']
+        ops.sort(key=lambda x: x['addr'])
+
+        op_map = {op['addr']: op for i, op in enumerate(ops)}
+        addr_map = {op['addr']: i for i, op in enumerate(ops)}
+
+        stack = [0]
+        seen = []
+        bbs = []
+
+        while len(stack) > 0:
+            b = BasicBlock([])
+            i = stack.pop()
+            for op in ops[i:]:
+                ins = Instruction(
+                    addr=op['addr'],
+                    disasm=op['disasm'],
+                    opcode=op['opcode'],
+                    size=op['size'],
+                    type=op['type'],
+                    jump=op['jump'] if 'jump' in op.keys() else None,
+                    jump_fail=op['fail'] if 'fail' in op.keys() else None
+                )
+
+                b.instructions.append(ins)
+
+                if ins.jump is not None and ins.type != 'call':
+                    if addr_map[ins.jump] not in stack and addr_map[ins.jump] not in seen:
+                        stack.append(addr_map[ins.jump])
+                        seen.append(addr_map[ins.jump])
+                        if ins.jump_fail is not None and addr_map[ins.jump_fail] not in seen and ins.jump_fail not in stack:
+                            stack.append(addr_map[ins.jump_fail])
+                            seen.append(addr_map[ins.jump_fail])
+                    break
+                if i+1 < len(ops) and addr_map[ops[i+1]['addr']] in stack:
+                    break
+            bbs.append(b)
+        return bbs
