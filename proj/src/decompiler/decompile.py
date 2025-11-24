@@ -38,7 +38,7 @@ class BasicBlock:
 
     def jump_inst(self):
         i = self.instructions[-1]
-        return i if i.jump is not None else None
+        return i if i.jump is not None or i.type == 'call' else None
 
 
 class Decompiler:
@@ -191,6 +191,7 @@ class Decompiler:
         while len(stack) > 0:
             b = BasicBlock([])
             i = stack.pop()
+            seen.append(i)
             for op in ops[i:]:
                 ins = Instruction(
                     addr=op['addr'],

@@ -29,10 +29,10 @@ if __name__ == '__main__':
 
     # print([f['name'] for f in fs])
     g = gm.make_call_graph(d.r, fs, True)
-    gm.save_graph(g, 'test_closed', path=f'{out}/graphs')
+    gm.save_graph(g, name='test_closed', mode='call', path=f'{out}/graphs')
 
     g = gm.make_call_graph(d.r, d.enum_f(), False)
-    gm.save_graph(g, 'test', path=f'{out}/graphs')
+    gm.save_graph(g, name='test', mode='call', path=f'{out}/graphs')
 
     for f in fs:
         if not re.match(r'sym\.imp\.*', f['name']):
@@ -41,13 +41,13 @@ if __name__ == '__main__':
 
             bbs = d.func_basic_blocks(d.disasm_function(f['addr']))
             print('-'*80)
+
             print(f['name'])
             for b in bbs:
                 pprint(b.start)
                 pprint(b)
                 pprint(b.jump_inst())
                 pprint(b.end)
-            '''
-            g = gm.make_logic_graph(disasm)
-            gm.save_graph(g, f'{f['name']}_logic_graph', path=f'{out}/graphs')
-            '''
+                g = gm.make_logic_graph(bbs)
+            gm.save_graph(g, name=f'{f['name']}_logic_graph',
+                          mode='logic', path=f'{out}/graphs')
