@@ -146,6 +146,7 @@ class Grapher:
         for b in bbs:
             bv = v_map[b.start]
             j_i = b.jump_inst()
+
             if j_i is not None:
                 if j_i.jump in v_map.keys():
                     bv_j = v_map[j_i.jump]
