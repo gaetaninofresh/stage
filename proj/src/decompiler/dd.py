@@ -1,5 +1,5 @@
 from graph_tool import Graph
-import tqdm
+from tqdm import tqdm
 import os
 import argparse
 import json
@@ -27,27 +27,19 @@ if __name__ == '__main__':
 
     fs = d.filter_funcs(exclude_on_name_re=False)
 
-    # print([f['name'] for f in fs])
     g = gm.make_call_graph(d.r, fs, True)
     gm.save_graph(g, name='test_closed', mode='call', path=f'{out}/graphs')
 
     g = gm.make_call_graph(d.r, d.enum_f(), False)
     gm.save_graph(g, name='test', mode='call', path=f'{out}/graphs')
 
-    for f in fs:
-        if not re.match(r'sym\.imp\.*', f['name']):
-            d.decompile_func(f['addr'], save_location=f'{
-                             out}/decompiled_funcs')
+    for f in tqdm([f for f in fs if not re.match(r'sym\.imp\.*', f['name'])]):
+        tqdm.write(f'Building {f['name']} logic graph')
+        d.decompile_func(f['addr'], save_location=f'{
+            out}/decompiled_funcs')
 
-            bbs = d.func_basic_blocks(d.disasm_function(f['addr']))
-            print('-'*80)
-
-            print(f['name'])
-            for b in bbs:
-                pprint(b.start)
-                pprint(b)
-                pprint(b.jump_inst())
-                pprint(b.end)
-                g = gm.make_logic_graph(bbs)
-            gm.save_graph(g, name=f'{f['name']}_logic_graph',
-                          mode='logic', path=f'{out}/graphs')
+        bbs = d.func_basic_blocks(d.disasm_function(f['addr']))
+        for b in bbs:
+            g = gm.make_logic_graph(bbs)
+        gm.save_graph(g, name=f'{f['name']}_logic_graph',
+                      mode='logic', path=f'{out}/graphs')

@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 import os
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Literal, Optional
 # CURRENT FEATURES
 
 
@@ -162,6 +162,7 @@ class Decompiler:
     def decompile_func(self,
                        f_addr: int,
                        file_name=None,
+                       format: Literal['raw', 'json'] = 'raw',
                        save_location=None,
                        ):
         self.r.cmd(f's @ {f_addr}')
@@ -170,9 +171,10 @@ class Decompiler:
             if file_name is None:
                 finfo = json.loads(self.r.cmd('afij') or '[]')
                 file_name = finfo[0]['name'] + '.c'
-            self.r.cmd(f'pdg > {save_location}/{file_name}')
-        else:
-            return self.r.cmd('pdg')
+            self.r.cmd(f'pdg{'j' if format == 'json' else ''} > {
+                       save_location}/{file_name}')
+
+        return self.r.cmd(f'pdg{'j' if format == 'json' else ''}')
 
     def disasm_function(self, f_addr: int):
         return json.loads(self.r.cmd(f'ss {f_addr}; pdfj') or '[]')
