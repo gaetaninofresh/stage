@@ -14,8 +14,6 @@ def is_executable_binary(path):
     try:
         with open(path, "rb") as f:
             header = f.read(4)
-        if header.startswith(b"MZ"):
-            return True
         if header == b"\x7fELF":
             return True
         else:
@@ -57,41 +55,28 @@ def process_bin(
 
     tk = load_tokenizer()
     rel_fs = d.relevant_fs(
-        check_sec_calls=True if re.match('good', bin) else False
+        check_sec_calls=True if re.match('.*good.*', bin) else False
     )
-
     labels = []
-    funcs = []
+    encodings = []
     for f in rel_fs:
+        tqdm.write(f'\tAnalyzing {f['name']}')
         decomp = d.decompile_func(f['addr'], format='raw')
         decomp = str(decomp).strip()
         code = clean(decomp)
-        label = 1 if re.match('bad', bin) else 0
-        funcs.append(code)
-        labels.append(label)
-
-        encodings = tk.encode_batch(funcs)
-        encodings = process_encodings(encodings)
+        labels.append(1 if re.match('.*bad.*', bin) else 0)  # Horrible
+        enc = tk.encode(code)
+        encodings.append(enc)
+    encodings = process_encodings(encodings)
     return encodings, labels
 
 
 def make_db(bins: List[str], filters: Dict[str, Any] | None = None) -> DecompDB:
-    bin_db = {}
-    encodings = {'ids': [], 'attention_mask': []}
-    labels = []
-    i = 0
+    decomp_db = DecompDB({'ids': [], 'attention_mask': []}, [])
     for bin in tqdm(bins):
         tqdm.write(f'Processing {bin}')
         enc, labels = process_bin(bin, filters)
-        encodings['ids'].append(enc['ids'])
-        encodings['attention_mask'].append(enc['attention_mask'])
-        labels.append(labels)
-        if i > 2:
-            break
-
-        i += 1
-    print(len(encodings['ids']), len(encodings['attention_mask']), len(labels))
-    decomp_db = DecompDB(encodings, labels)
+        decomp_db.append(enc, labels)
     return decomp_db
 
 
@@ -116,5 +101,4 @@ if __name__ == '__main__':
                 bins.append(bin_path)
 
     db = make_db(bins)
-    for k in db:
-        print()
+    db.save_arrow(f'{args.out}/db.arrow')
