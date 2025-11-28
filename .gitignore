@@ -10,6 +10,9 @@ juliet-test-suite-c/*
 graphs
 graphs/*
 
+dbs/
+dbs/*
+
 out/
 out/*
 
