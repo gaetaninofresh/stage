@@ -4,26 +4,10 @@ import torch
 from typing import Dict, List, Any, Tuple
 from argparse import ArgumentParser
 from pathlib import Path
-from decompile import Decompiler
+from decompiler.decompile import Decompiler
+from db import DecompDB
 from tokenizer import load_tokenizer
 from tqdm import tqdm
-
-
-class DecompDB():
-    def __init__(self, encodings, labels):
-        self.encodings = encodings
-        self.labels = labels
-        assert len(self.encodings['ids']) == len(
-            self.encodings['attention_mask']) == len(self.labels)
-
-    def __getitem__(self, idx):
-        item = {key: torch.tensor(val[idx])
-                for key, val in self.encodings.items()}
-        item['labels'] = torch.tensor(self.labels[idx])
-        return item
-
-    def __len__(self):
-        return len(self.labels)
 
 
 def is_executable_binary(path):
@@ -62,7 +46,7 @@ def process_encodings(encodings):
 
 def process_bin(
         bin: str,
-        filters: Dict[str, Any] | None) -> Tuple[List, List]:
+        filters: Dict[str, Any] | None):
     d = Decompiler(bin)
 
     fs = d.enum_f()
@@ -72,34 +56,41 @@ def process_bin(
         **filters) if filters is not None else d.filter_funcs())]
 
     tk = load_tokenizer()
-    rel_fs = d.relevant_fs()
+    rel_fs = d.relevant_fs(
+        check_sec_calls=True if re.match('good', bin) else False
+    )
 
-    encodings = labels = []
-
+    labels = []
+    funcs = []
     for f in rel_fs:
         decomp = d.decompile_func(f['addr'], format='raw')
-        print(decomp)
         decomp = str(decomp).strip()
         code = clean(decomp)
         label = 1 if re.match('bad', bin) else 0
-
-        encoding = tk.encode(code)
-        encoding = {'ids': encoding.ids,
-                    'attention_mask': encoding.attention_mask}
-        encodings.append(encoding)
+        funcs.append(code)
         labels.append(label)
 
+        encodings = tk.encode_batch(funcs)
+        encodings = process_encodings(encodings)
     return encodings, labels
 
 
-def make_db(bins: List[str], filters: Dict[str, Any] | None) -> DecompDB:
+def make_db(bins: List[str], filters: Dict[str, Any] | None = None) -> DecompDB:
     bin_db = {}
-    encodings = labels = []
+    encodings = {'ids': [], 'attention_mask': []}
+    labels = []
+    i = 0
     for bin in tqdm(bins):
         tqdm.write(f'Processing {bin}')
-        encodings, labels = process_bin(bin, filters)
-        encodings.extend(encodings)
-        labels.extend(labels)
+        enc, labels = process_bin(bin, filters)
+        encodings['ids'].append(enc['ids'])
+        encodings['attention_mask'].append(enc['attention_mask'])
+        labels.append(labels)
+        if i > 2:
+            break
+
+        i += 1
+    print(len(encodings['ids']), len(encodings['attention_mask']), len(labels))
     decomp_db = DecompDB(encodings, labels)
     return decomp_db
 
@@ -124,6 +115,6 @@ if __name__ == '__main__':
             if is_executable_binary(bin_path):
                 bins.append(bin_path)
 
-    db = make_db(bins, {})
+    db = make_db(bins)
     for k in db:
         print()

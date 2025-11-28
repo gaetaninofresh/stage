@@ -226,11 +226,14 @@ class Decompiler:
             bbs.append(b)
         return bbs
 
-    def relevant_fs(self):
+    def relevant_fs(self, check_sec_calls: bool = False):
         xrefs = json.loads(self.r.cmd('ss main; afxj') or '[]')
         primary_f_call = [f for f in xrefs if f['type'] == 'CALL'][-2]
-        secondary_fs_calls = [fun for fun in json.loads(
-            self.r.cmd(f'ss {primary_f_call['to']}; afxj') or '[]') if fun['type'] == 'CALL']
+        if check_sec_calls:
+            secondary_fs_calls = [fun for fun in json.loads(
+                self.r.cmd(f'ss {primary_f_call['to']}; afxj') or '[]') if fun['type'] == 'CALL']
+        else:
+            secondary_fs_calls = []
         fs = [primary_f_call, *secondary_fs_calls]
         funcs = []
         for f in fs:
