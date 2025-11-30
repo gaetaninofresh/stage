@@ -59,7 +59,7 @@ def process_bin(
     tk = load_tokenizer()
 
     rel_fs = d.relevant_fs(
-        check_sec_calls=True if re.match('good', bin) else False)
+        check_sec_calls=True if re.match('.*good.*', bin_path) else False)
 
     labels = []
     encodings = []
@@ -69,7 +69,7 @@ def process_bin(
         decomp = str(decomp).strip()
         code = clean(decomp)
 
-        label = 1 if re.match('bad', bin) else 0
+        label = 1 if re.match('.*bad.*', bin_path) else 0
         encoding = tk.encode(code)
 
         labels.append(label)
@@ -122,4 +122,5 @@ if __name__ == '__main__':
                 bins.append(bin_path)
 
     db = make_db(bins)
-    db.save_arrow(f'{args.out}/bd.arrow')
+    print(db.labels)
+    db.save_arrow(f'{args.out}/db.arrow')

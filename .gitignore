@@ -16,4 +16,8 @@ dbs/*
 out/
 out/*
 
+models/
+models/*
+
+
 .flake8
