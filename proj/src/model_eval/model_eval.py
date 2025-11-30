@@ -17,7 +17,6 @@ from sklearn.exceptions import UndefinedMetricWarning
 
 
 def is_vulberta_mlp_folder(path: str) -> bool:
-    """Check if a folder contains a HuggingFace VulBERTa-MLP model"""
     files = set(os.listdir(path))
     return "config.json" in files and bool(files & {"pytorch_model.bin", "model.safetensors"})
 
