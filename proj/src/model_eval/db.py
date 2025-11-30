@@ -51,15 +51,16 @@ class DecompDB:
 
     def to_arrow_table(self):
         data = {}
-
-        # encodings fields
+        schema = pa.schema({
+            'ids': pa.list_(pa.uint64()),
+            'attention_mask': pa.list_(pa.uint64()),
+            "labels": pa.uint64()
+        })
         for key, values in self.encodings.items():
-            data[key] = pa.array(values)  # handles list[list[int]] properly
+            data[key] = pa.array(values)
+            data["labels"] = self.labels
 
-        # labels
-        data["labels"] = pa.array(self.labels)
-
-        return pa.table(data)
+        return pa.table(data, schema)
 
     def save_arrow(self, path: str):
         table = self.to_arrow_table()

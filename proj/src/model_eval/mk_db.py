@@ -8,6 +8,7 @@ from decompiler.decompile import Decompiler
 from db import DecompDB
 from tokenizer import load_tokenizer
 from tqdm import tqdm
+from concurrent.futures import ProcessPoolExecutor
 
 
 def is_executable_binary(path):
@@ -36,16 +37,18 @@ def clean(code):
 def process_encodings(encodings):
     input_ids = []
     attention_mask = []
+
     for enc in encodings:
         input_ids.append(enc.ids)
         attention_mask.append(enc.attention_mask)
+
     return {'ids': input_ids, 'attention_mask': attention_mask}
 
 
 def process_bin(
-        bin: str,
+        bin_path: str,
         filters: Dict[str, Any] | None):
-    d = Decompiler(bin)
+    d = Decompiler(bin_path)
 
     fs = d.enum_f()
     d.clean_f_name(fs)
@@ -54,29 +57,47 @@ def process_bin(
         **filters) if filters is not None else d.filter_funcs())]
 
     tk = load_tokenizer()
+
     rel_fs = d.relevant_fs(
-        check_sec_calls=True if re.match('.*good.*', bin) else False
-    )
+        check_sec_calls=True if re.match('good', bin) else False)
+
     labels = []
     encodings = []
+
     for f in rel_fs:
-        tqdm.write(f'\tAnalyzing {f['name']}')
         decomp = d.decompile_func(f['addr'], format='raw')
         decomp = str(decomp).strip()
         code = clean(decomp)
-        labels.append(1 if re.match('.*bad.*', bin) else 0)  # Horrible
-        enc = tk.encode(code)
-        encodings.append(enc)
+
+        label = 1 if re.match('bad', bin) else 0
+        encoding = tk.encode(code)
+
+        labels.append(label)
+        encodings.append(encoding)
+
     encodings = process_encodings(encodings)
+
     return encodings, labels
 
 
-def make_db(bins: List[str], filters: Dict[str, Any] | None = None) -> DecompDB:
-    decomp_db = DecompDB({'ids': [], 'attention_mask': []}, [])
-    for bin in tqdm(bins):
-        tqdm.write(f'Processing {bin}')
-        enc, labels = process_bin(bin, filters)
-        decomp_db.append(enc, labels)
+def make_db(bins: List[str], filters: Dict[str, Any] | None = None, workers: int = 32) -> DecompDB:
+    decomp_db = DecompDB(
+        encodings={"ids": [], "attention_mask": []},
+        labels=[]
+    )
+
+    with ProcessPoolExecutor(max_workers=workers) as ex:
+        futures = [ex.submit(process_bin, b, filters) for b in bins]
+
+        for b, fut in tqdm(zip(bins, futures), total=len(bins)):
+            try:
+                tqdm.write(f'Processing {b}')
+                enc, labels = fut.result()
+            except Exception as e:
+                tqdm.write(f"Error processing {b}: {e}")
+                continue
+
+            decomp_db.append(enc, labels)
     return decomp_db
 
 
@@ -101,4 +122,4 @@ if __name__ == '__main__':
                 bins.append(bin_path)
 
     db = make_db(bins)
-    db.save_arrow(f'{args.out}/db.arrow')
+    db.save_arrow(f'{args.out}/bd.arrow')
