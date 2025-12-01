@@ -1,6 +1,6 @@
 import re
 from typing import List, Tuple, Dict, Any
-from decompile import Decompiler
+from decompiler.decompile import Decompiler
 from tokenizer import load_tokenizer
 import traceback
 
