@@ -16,7 +16,8 @@ if cindex.Config.library_file is None:
 
 
 class ClangTokenizer:
-    cidx = cindex.Index.create()
+    def __init__(self) -> None:
+        self.cidx = cindex.Index.create()
 
     def clang_split(self, i: int, normalized_string: NormalizedString) -> List[NormalizedString]:
         # Tokkenize using clang
