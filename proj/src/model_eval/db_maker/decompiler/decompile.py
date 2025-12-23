@@ -70,6 +70,20 @@ class Decompiler:
         self.r = r2.open(bin, flags=["-2", "-e bin.relocs.apply=true"])
         self.r.cmd('-AA')
 
+    def close(self):
+        try:
+            if self.r:
+                self.r.quit()
+                self.r = None
+        except Exception:
+            pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
     def filter_funcs_by_name(self, funcs, pattern=None):
         '''
         Return functions matching an hardcoded regex pattern from provided json function list
@@ -232,9 +246,9 @@ class Decompiler:
         if check_sec_calls:
             secondary_fs_calls = [fun for fun in json.loads(
                 self.r.cmd(f'ss {primary_f_call['to']}; afxj') or '[]') if fun['type'] == 'CALL']
+            fs = secondary_fs_calls
         else:
-            secondary_fs_calls = []
-        fs = [primary_f_call, *secondary_fs_calls]
+            fs = [primary_f_call]
         funcs = []
         for f in fs:
             finfo = json.loads(self.r.cmd(f'ss {f['to']}; afij') or '[]')

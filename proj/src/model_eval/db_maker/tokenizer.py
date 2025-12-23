@@ -16,7 +16,8 @@ if cindex.Config.library_file is None:
 
 
 class ClangTokenizer:
-    cidx = cindex.Index.create()
+    def __init__(self) -> None:
+        self.cidx = cindex.Index.create()
 
     def clang_split(self, i: int, normalized_string: NormalizedString) -> List[NormalizedString]:
         # Tokkenize using clang
@@ -42,7 +43,7 @@ class ClangTokenizer:
 
 def load_tokenizer():
     vocab, merges = BPE.read_file(
-        vocab="./models/tokenizer/drapgh-vocab.json", merges="./models/tokenizer/drapgh-merges.txt")
+        vocab="../models/tokenizer/drapgh-vocab.json", merges="../models/tokenizer/drapgh-merges.txt")
     tokenizer = Tokenizer(
         BPE(vocab, merges, unk_token="<unk>"))
 

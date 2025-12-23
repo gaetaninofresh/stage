@@ -5,8 +5,9 @@ import warnings
 import json
 import pandas as pd
 from argparse import ArgumentParser
-import pyarrow.feather as feather
+import pyarrow.parquet as pq
 import pyarrow.dataset as ds
+import pyarrow as pa
 import torch
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_sequence
@@ -55,7 +56,7 @@ class VulBERTaEvaluator:
 
     def preprocess_batch(self, batch):
         input_ids = [torch.tensor(x, dtype=torch.long)
-                     for x in batch["input_ids"].to_pylist()]
+                     for x in batch["ids"].to_pylist()]
         attention_mask = [torch.tensor(x, dtype=torch.long)
                           for x in batch["attention_mask"].to_pylist()]
         labels = torch.tensor(
@@ -136,13 +137,10 @@ if __name__ == "__main__":
     assert os.path.exists(args.db), f"DB not found: {args.db}"
     assert os.path.isdir(args.model_dir), f"Model dir not found: {
         args.model_dir}"
+
     os.makedirs(args.out, exist_ok=True)
 
-    table = feather.read_table(args.db)
-    if "ids" in table.column_names and "input_ids" not in table.column_names:
-        table = table.rename_columns(
-            ["input_ids" if n == "ids" else n for n in table.column_names])
-    dataset = ds.dataset(table)
+    dataset = ds.dataset(args.db, format='parquet')
 
     # Find valid models
     model_paths = [os.path.join(args.model_dir, d) for d in os.listdir(args.model_dir)
