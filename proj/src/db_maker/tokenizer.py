@@ -20,7 +20,7 @@ class ClangTokenizer:
         self.cidx = cindex.Index.create()
 
     def clang_split(self, i: int, normalized_string: NormalizedString) -> List[NormalizedString]:
-        # Tokkenize using clang
+        # Tokenize using clang
         tok = []
         tu = self.cidx.parse('tmp.c',
                              args=[''],
@@ -43,7 +43,7 @@ class ClangTokenizer:
 
 def load_tokenizer():
     vocab, merges = BPE.read_file(
-        vocab="../models/tokenizer/drapgh-vocab.json", merges="../models/tokenizer/drapgh-merges.txt")
+        vocab="./vulberta_tokenizer_config/drapgh-vocab.json", merges="./vulberta_tokenizer_config/drapgh-merges.txt")
     tokenizer = Tokenizer(
         BPE(vocab, merges, unk_token="<unk>"))
 
@@ -62,12 +62,7 @@ def load_tokenizer():
         ]
     )
 
-    tokenizer.enable_truncation(max_length=1024)
+    tokenizer.enable_truncation(max_length=1024)  # as of paper specs
     tokenizer.enable_padding(direction='right', pad_id=1, pad_type_id=0,
-                             pad_token='<pad>', length=None, pad_to_multiple_of=None)
+                             pad_token='<pad>', length=1024)
     return tokenizer
-
-
-if __name__ == '__main__':
-    t = load_tokenizer()
-    print(type(t))

@@ -243,6 +243,8 @@ class Decompiler:
     def relevant_fs(self, check_sec_calls: bool = False):
         xrefs = json.loads(self.r.cmd('ss main; afxj') or '[]')
         primary_f_call = [f for f in xrefs if f['type'] == 'CALL'][-2]
+
+        # Safe calls are always a wrapper function calling one or more functions with actually intersting code
         if check_sec_calls:
             secondary_fs_calls = [fun for fun in json.loads(
                 self.r.cmd(f'ss {primary_f_call['to']}; afxj') or '[]') if fun['type'] == 'CALL']
@@ -250,13 +252,8 @@ class Decompiler:
         else:
             fs = [primary_f_call]
         funcs = []
+
         for f in fs:
             finfo = json.loads(self.r.cmd(f'ss {f['to']}; afij') or '[]')
             funcs.append(*finfo)
         return self.filter_funcs(func_list=funcs)
-
-
-if __name__ == '__main__':
-    r = Decompiler(
-        './test_db_mini/good/CWE121_Stack_Based_Buffer_Overflow__CWE85_int64_t_alloca_memcpy7-good')
-    print(r.relevant_fs())

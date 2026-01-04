@@ -4,9 +4,6 @@ from typing import List, Dict, Any
 
 
 class IncrementalDBWriter:
-    """
-    Append small batches (row-groups) to a Parquet file.
-    """
 
     def __init__(self, path: str):
         self.path = path

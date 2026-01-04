@@ -1,6 +1,8 @@
 *.tmp
-
 *.pyc
+*.parquet
+*.safetensors
+
 __pycache__
 __pycache__/*
 
@@ -18,6 +20,12 @@ out/*
 
 models/
 models/*
+
+model_train/results
+model_train/results/*
+
+VulBERTa/
+VulBERTa/*
 
 
 .flake8

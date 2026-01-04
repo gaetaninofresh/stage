@@ -10,7 +10,6 @@ _tokenizer = None
 def init_worker(tokenizer_args: dict = None):
     """
     initializer for worker processes; load tokenizer once per worker.
-    tokenizer_args is passed through from main (can be None).
     """
     global _tokenizer
     _tokenizer = load_tokenizer(**(tokenizer_args or {}))
@@ -25,10 +24,8 @@ def _clean_code(src: str) -> str:
 
 def process_bin_chunk(bin_paths: List[str], filters: Dict[str, Any] | None = None
                       ) -> Tuple[Dict[str, List[List[int]]], List[int], List[str]]:
-    """
-    Process a chunk of binaries.
-    """
     global _tokenizer
+
     all_ids = []
     all_masks = []
     all_labels = []
@@ -42,8 +39,8 @@ def process_bin_chunk(bin_paths: List[str], filters: Dict[str, Any] | None = Non
                 filter_funcs = d.filter_funcs(**(filters or {}))
                 fs = [f for f in fs if f not in filter_funcs]
 
-                rel_fs = d.relevant_fs(check_sec_calls=True if re.match(
-                    '.*good.*', bin_path) else False)
+                rel_fs = d.relevant_fs(check_sec_calls=(True if re.match(
+                    '.*good.*', bin_path) else False))
 
                 code_list = []
                 for f in rel_fs:
@@ -62,7 +59,6 @@ def process_bin_chunk(bin_paths: List[str], filters: Dict[str, Any] | None = Non
                 ids_list = [enc.ids for enc in encodings]
                 masks_list = [enc.attention_mask for enc in encodings]
             except Exception:
-                # fallback
                 ids_list = []
                 masks_list = []
                 for code in code_list:
@@ -72,9 +68,12 @@ def process_bin_chunk(bin_paths: List[str], filters: Dict[str, Any] | None = Non
 
             label_val = 1 if re.match('.*bad.*', bin_path) else 0
             labels_for_bin = [label_val] * len(ids_list)
+
             all_ids.extend(ids_list)
             all_masks.extend(masks_list)
+
             all_labels.extend(labels_for_bin)
+
             processed_bins.append(bin_path)
 
         except Exception as e:

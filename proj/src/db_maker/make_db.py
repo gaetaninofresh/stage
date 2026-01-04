@@ -69,7 +69,6 @@ def make_db(bins: List[str],
 
     # Use a Pool with initializer to load tokenizer in each worker once
     with Pool(processes=workers, initializer=init_worker, initargs=(tokenizer_args or {},), maxtasksperchild=10) as pool:
-        # imap_unordered yields results as tasks finish
 
         tasks = [(chunk, filters) for chunk in bin_chunks]
 

@@ -3,11 +3,8 @@ from tabulate import tabulate
 import os
 import warnings
 import json
-import pandas as pd
 from argparse import ArgumentParser
-import pyarrow.parquet as pq
 import pyarrow.dataset as ds
-import pyarrow as pa
 import torch
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_sequence
@@ -19,7 +16,7 @@ from sklearn.exceptions import UndefinedMetricWarning
 
 def is_vulberta_mlp_folder(path: str) -> bool:
     files = set(os.listdir(path))
-    return "config.json" in files and bool(files & {"pytorch_model.bin", "model.safetensors"})
+    return "config.json" in files and bool(files & {"model.safetensors"})
 
 
 def print_summary(summary, sort_by="f1", descending=True):
@@ -64,6 +61,7 @@ class VulBERTaEvaluator:
 
         input_ids = pad_sequence(
             input_ids, batch_first=True, padding_value=1).to(self.device)
+
         attention_mask = pad_sequence(
             attention_mask, batch_first=True, padding_value=0).to(self.device)
 
