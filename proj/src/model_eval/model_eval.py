@@ -124,7 +124,7 @@ class VulBERTaEvaluator:
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("db", type=str, help="Path to Feather/Arrow DB")
+    parser.add_argument("db", type=str, help="Path to Parquet DB")
     parser.add_argument("model_dir", type=str,
                         help="Folder with multiple VulBERTa-MLP subfolders")
     parser.add_argument("-o", "--out", default="./out",
