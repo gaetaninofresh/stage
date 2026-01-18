@@ -18,7 +18,7 @@ def save_metrics(metrics, filename="results/training_logs.jsonl"):
         f.write(json.dumps(metrics) + "\n")
 
 
-def train_vulberta(model, train_loader, val_loader, epochs=3, device='cuda'):
+def train_vulberta(model, train_loader, val_loader, epochs=3, device='cuda', out_dir='./results/', early_stop=False):
     model.to(device)
     scaler = torch.amp.GradScaler('cuda')
 
@@ -35,7 +35,7 @@ def train_vulberta(model, train_loader, val_loader, epochs=3, device='cuda'):
     print(f"Starting Training on {device}...")
 
     glob_loss_i = 0
-    f = open('./results/loss.csv', 'w')
+    f = open(out_dir + 'loss.csv', 'w')
     f.write("step,epoch,loss\n")
 
     for epoch in range(epochs):
@@ -78,19 +78,22 @@ def train_vulberta(model, train_loader, val_loader, epochs=3, device='cuda'):
 
             total_train_loss += loss.item()
 
-            # Stop on low loss to avoid overfitting on last 20 average
-            if len(loss_buffer) < 20:
-                loss_buffer.append(loss.item())
-            else:
-                if sum(loss_buffer) / 20 <= .1:
-                    break
-                loss_buffer.pop(0)
-                loss_buffer.append(loss.item())
+            if early_stop:
+                # Stop on low loss to avoid overfitting on last 20 average
+                if len(loss_buffer) < 20:
+                    loss_buffer.append(loss.item())
+                else:
+                    if sum(loss_buffer) / 20 <= .1:
+                        break
+                    loss_buffer.pop(0)
+                    loss_buffer.append(loss.item())
 
-            loss_avg = sum(loss_buffer) / len(loss_buffer)
+                loss_avg = sum(loss_buffer) / len(loss_buffer)
 
             loop.set_description(f"Epoch {epoch+1}")
-            loop.set_postfix(train_loss=loss_avg)
+
+            if early_stop:
+                loop.set_postfix(train_loss=loss_avg)
 
         avg_train_loss = total_train_loss / i
 
@@ -114,7 +117,7 @@ def train_vulberta(model, train_loader, val_loader, epochs=3, device='cuda'):
 
     f.close()
     print("Training Complete. Saving final model...")
-    model.save_pretrained("./results/vulberta_best_final")
+    model.save_pretrained(out_dir + "vulberta_best_final")
 
 
 def evaluate(model, val_loader, device):
@@ -179,4 +182,5 @@ if __name__ == "__main__":
     model = AutoModelForSequenceClassification.from_pretrained(
         model_path, num_labels=2)
 
-    train_vulberta(model, train_loader, val_loader, epochs=5, device=device)
+    train_vulberta(model, train_loader, val_loader,
+                   epochs=5, device=device, out_dir=out_path)
