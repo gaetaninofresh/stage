@@ -1,18 +1,19 @@
+import os
+import uuid
 import pyarrow as pa
 import pyarrow.parquet as pq
-from typing import List, Dict, Any
+from typing import List, Dict
 
 
 class IncrementalDBWriter:
-
-    def __init__(self, path: str):
-        self.path = path
+    def __init__(self, base_dir: str):
+        self.base_dir = base_dir
+        os.makedirs(base_dir, exist_ok=True)
         self.schema = pa.schema({
             "ids": pa.list_(pa.uint32()),
             "attention_mask": pa.list_(pa.uint32()),
             "labels": pa.uint8()
         })
-        self.writer = pq.ParquetWriter(path, self.schema, use_dictionary=False)
 
     def write_batch(self, encodings: Dict[str, List[List[int]]], labels: List[int]):
         if len(labels) == 0:
@@ -24,7 +25,11 @@ class IncrementalDBWriter:
             "labels": pa.array(labels, type=pa.uint8())
         }, schema=self.schema)
 
-        self.writer.write_table(table)
+        # Write a unique file for every batch or chunk
+        filename = f"part-{uuid.uuid4().hex}.parquet"
+        out_path = os.path.join(self.base_dir, filename)
+
+        pq.write_table(table, out_path)
 
     def close(self):
-        self.writer.close()
+        pass

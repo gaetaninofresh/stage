@@ -1,16 +1,21 @@
 import re
-from typing import List, Tuple, Dict, Any
+import queue
+import signal
+import os
+from multiprocessing import Pool
+from typing import List, Tuple, Dict, Any, Literal
 from decompiler.decompile import Decompiler
 from tokenizer import load_tokenizer
 import traceback
-
+import hashlib
+from collections import deque
+from multiprocessing import Manager
+import traceback
+from parquet_writer import IncrementalDBWriter
 _tokenizer = None
 
 
 def init_worker(tokenizer_args: dict = None):
-    """
-    initializer for worker processes; load tokenizer once per worker.
-    """
     global _tokenizer
     _tokenizer = load_tokenizer(**(tokenizer_args or {}))
 
@@ -22,64 +27,143 @@ def _clean_code(src: str) -> str:
     return code.strip()
 
 
-def process_bin_chunk(bin_paths: List[str], filters: Dict[str, Any] | None = None
-                      ) -> Tuple[Dict[str, List[List[int]]], List[int], List[str]]:
-    global _tokenizer
+def _batch_list(lst, n):
+    if n >= len(lst):
+        yield lst
+    else:
+        for i in range(0, len(lst), n):
+            yield lst[i:i + n]
 
-    all_ids = []
-    all_masks = []
-    all_labels = []
-    processed_bins = []
 
-    for bin_path in bin_paths:
-        try:
-            with Decompiler(bin_path) as d:
-                fs = d.enum_f()
-                d.clean_f_name(fs)
-                filter_funcs = d.filter_funcs(**(filters or {}))
-                fs = [f for f in fs if f not in filter_funcs]
+def decompile_bin(bin_path, out_queue, filters):
+    CHUNK_SIZE = 256
+    func_buffer = {'code': [], 'hash': []}
+    try:
+        with Decompiler(bin_path) as d:
+            fs = d.enum_f()
+            d.clean_f_name(fs)
+            filter_funcs = d.filter_funcs(**(filters or {}))
+            fs = [f for f in fs if f not in filter_funcs]
 
-                rel_fs = d.relevant_fs(check_sec_calls=(True if re.match(
-                    '.*good.*', bin_path) else False))
-
-                code_list = []
-                for f in rel_fs:
+            # Decompile everything into local memory first.
+            for f in fs:
+                try:
                     decomp = d.decompile_func(f['addr'], format='raw')
                     code = _clean_code(str(decomp))
-                    code_list.append(code)
+                    if not code:
+                        continue
+                    else:
+                        func_buffer['code'].append(code)
+                        func_buffer['hash'].append(hash(code))
+                    # Push data to tokenizer's queue
+                    if len(func_buffer['code']) > CHUNK_SIZE:
+                        out_queue.put(
+                            {'code': func_buffer['code'], 'hash': func_buffer['hash'], 'bin': bin_path, 'done': False})
+                        func_buffer = {'code': [], 'hash': []}
+                except Exception:
+                    continue
+            # clear buffer
+            out_queue.put(
+                {'code': func_buffer['code'], 'hash': func_buffer['hash'], 'bin': bin_path, 'done': True})
 
-            if not code_list:
-                # nothing decompiled in this binary
-                processed_bins.append(bin_path)
-                continue
+    except Exception as e:
+        print(f'--- Exception during decompilation: {e}')
+        raise
 
-            # Use batch encode if available; fallback to per-item encode
+
+def consumer_tokenize(
+        tokenize_queue,
+        done_queue,
+        label_mode: Literal,
+        tokenizer_args: Dict,
+        writer_args: Dict
+):
+    tokenizer = load_tokenizer(**(tokenizer_args or {}))
+    writer = IncrementalDBWriter(**(writer_args or {}))
+
+    BATCH_SIZE = 2048
+    code_buffer = {'code': [], 'hash': []}
+    metadata_buffer = []
+    shutdown = False
+
+    while True:
+        flush_buffer = False
+
+        # Fill buffer
+        try:
+            item = tokenize_queue.get(timeout=0.5)
+            if item is None:
+                shutdown = True
+                # Flush remaining data before exiting
+                if code_buffer['code']:
+                    flush_buffer = True
+            else:
+                code = item['code']
+                code_hash = item['hash']
+                bin_path = item['bin']
+
+                # Create metadata - mark last item with binary path
+                meta = [None] * len(code)
+                if item['done']:
+                    meta[-1] = bin_path
+
+                code_buffer['code'].extend(code)
+                code_buffer['hash'].extend(code_hash)
+                metadata_buffer.extend(meta)
+
+        except queue.Empty:
+            pass
+
+        # Check if buffer is full
+        if len(code_buffer['code']) >= BATCH_SIZE:
+            flush_buffer = True
+
+        # Batched tokenization
+        if flush_buffer and code_buffer['code']:
             try:
-                encodings = _tokenizer.encode_batch(code_list)
-                ids_list = [enc.ids for enc in encodings]
-                masks_list = [enc.attention_mask for enc in encodings]
-            except Exception:
-                ids_list = []
-                masks_list = []
-                for code in code_list:
-                    enc = _tokenizer.encode(code)
-                    ids_list.append(enc.ids)
-                    masks_list.append(enc.attention_mask)
+                batch_end_i = min(len(code_buffer['code']), BATCH_SIZE)
 
-            label_val = 1 if re.match('.*bad.*', bin_path) else 0
-            labels_for_bin = [label_val] * len(ids_list)
+                batch_code = code_buffer['code'][:batch_end_i]
+                code_buffer['code'] = code_buffer['code'][batch_end_i:]
 
-            all_ids.extend(ids_list)
-            all_masks.extend(masks_list)
+                batch_hash = code_buffer['hash'][:batch_end_i]
+                code_buffer['hash'] = code_buffer['hash'][batch_end_i:]
 
-            all_labels.extend(labels_for_bin)
+                meta_processed = metadata_buffer[:batch_end_i]
+                metadata_buffer = metadata_buffer[batch_end_i:]
 
-            processed_bins.append(bin_path)
+                # Tokenize the batch
+                batch_encs = tokenizer.encode_batch(batch_code)
 
-        except Exception as e:
-            # return partial results for already processed binaries in the chunk
-            traceback.print_exc()
-            continue
+                if batch_encs:
+                    ids = [e.ids for e in batch_encs]
+                    masks = [e.attention_mask for e in batch_encs]
 
-    encodings_out = {"ids": all_ids, "attention_mask": all_masks}
-    return encodings_out, all_labels, processed_bins
+                    data = {
+                        'ids': ids,
+                        'attention_mask': masks,
+                        'hash': batch_hash
+                    }
+
+                    # Write to parquet
+                    writer.write_batch(
+                        data,
+                        labels=[0 if label_mode == 'safe' else 1] * len(ids)
+                    )
+
+                    # Notify about completed binaries
+                    meta_processed_set = set(meta_processed)
+                    meta_processed_set.discard(None)
+                    for bin_path in meta_processed_set:
+                        done_queue.put(bin_path)
+
+            except Exception as e:
+                print(f'--- Exception during tokenization: {e}')
+                traceback.print_exc()
+
+        # Exit if shutdown requested and buffer is empty
+        if shutdown and not code_buffer['code']:
+            break
+
+    writer.close()
+    print(f"Tokenizer process exiting (mode: {label_mode})")

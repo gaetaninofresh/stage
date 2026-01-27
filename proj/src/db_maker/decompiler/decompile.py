@@ -135,7 +135,8 @@ class Decompiler:
 
         sec = json.loads(str(self.r.cmd('iSj')))
         plt_sec = [s for s in sec if re.match(r'\.plt\w*', s['name'])]
-
+        if not plt_sec:
+            return []
         plt_start = plt_sec[0]['paddr']
         plt_end = plt_sec[-1]['paddr']
         plt_f = []
