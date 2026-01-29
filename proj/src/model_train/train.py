@@ -12,8 +12,10 @@ from sklearn.utils.class_weight import compute_class_weight
 from argparse import ArgumentParser
 from helpers import calculate_weights, FocalLoss
 from torch.utils.tensorboard import SummaryWriter
+from torchmetrics.classification import RecallAtFixedFPR
 
-os.makedirs("results", exist_ok=True)
+
+os.makedirs("./results", exist_ok=True)
 
 
 def save_metrics(metrics, filename="results/training_logs.jsonl"):
@@ -107,22 +109,22 @@ def train_vulberta(
         train_loader,
         val_loader,
         weights,
+        treshold=0.3,
         loss_func='ce',
         epochs=20,
         device='cuda',
-        out_dir='./results/',
-        early_stop=False
+        out_dir='./results/'
 ):
 
     ACCUMULATION_BATCH_SIZE = 16
     model.to(device)
     scaler = torch.amp.GradScaler('cuda')
 
-    # TENSORBOARD SETUP
+    # Tensorboard setup
     log_dir = os.path.join(out_dir, "runs/")
-    os.makedirs(log_dir)
+    os.makedirs(log_dir, exist_ok=True)
     writer = SummaryWriter(log_dir=log_dir)
-    print(f"TensorBoard logging avviato su: {log_dir}")
+    print(f"TensorBoard logging started on: {log_dir}")
     global_step = 0
 
     # Learning rate from VulBerta paper
@@ -201,7 +203,7 @@ def train_vulberta(
         print(f"\nValidating Epoch {epoch+1}...")
 
         # TODO: Temporary treshold, must back up choice
-        metrics = evaluate(model, val_loader, device, threshold=0.5)
+        metrics = evaluate(model, val_loader, device, threshold=treshold)
 
         writer.add_scalar("Val/F2", metrics['f2'], epoch)
         writer.add_scalar("Val/Recall", metrics['recall'], epoch)
@@ -240,12 +242,14 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("db", type=str, help="Path to parquet db")
     parser.add_argument("model", type=str, help="Path to VulBerta")
-    parser.add_argument("-o", "--out", default="./out", type=str, help="")
+    parser.add_argument("-o", "--out", default="./out", type=str)
+    parser.add_argument("-l", "--loss_function", default="ce", type=str)
     args = parser.parse_args()
 
     db_path = args.db
     out_path = args.out
     model_path = args.model
+    loss_func = args.loss_function
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     dataset = load_dataset(
@@ -286,8 +290,9 @@ if __name__ == "__main__":
         model,
         train_loader,
         val_loader,
+        treshold=0.3,
         weights=weights,
-        epochs=5,
+        loss_func=loss_func,
         device=device,
         out_dir=out_path
     )
