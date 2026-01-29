@@ -1,13 +1,8 @@
-Addestramento e valutazione di modelli per il riconoscimento di funzioni estratte tramite decompilazione.
+Addestramento e valutazione di modelli per il riconoscimento di vulnerabilità in contesti closed-source. 
 
-Training and model evaluation for vulnerable function recognition from decompiled code.
-
-
-La presente tesi si propone di indagare l'applicabilità di modelli già affermati per il riconoscimento di codice sorgente vulnerabile su codice estratto tramite decompilazione.
+ML models training and evaluation for vulnerable code recognition in closed-source scenarios.
 
 
-
-
-La presente tesi si propone di indagare l'applicabilità di un fine-tuning VulBERTa in contesti closed-source.
-Il lavoro presenta lo sviluppo di una pipeline utilizzabile sia per la costruzione di dataset etichettati che per la valutazione di singoli binari. Il sistema integra radare2 per l'estrazione di funzioni in massa, con filtri modulari atti a ridurre gli artefatti tipici della decompilazione. Successivamente i dati estratti passano attraverso un modulo di pre-processing che utilizza un tokenizzatore basato su clang che normalizza e codifica in forma vettoriale il codice utilizzando Byte-Pair Encoding.
-
+La presente tesi si propone di presentare lo sviluppo di una pipeline end-to-end per l'individuazione di vulnerabilità in contesti closed source attraverso tecniche di analisi statica associate a modelli di machine learning per la classificazione.
+La pipeline consiste in un modulo per la decompilazione che sfrutta radare2 per estrarre e filtrare funzioni provenienti dai dataset Juliet e Binpool. Il codice C++ risultante viene processato da un modulo per la costruzione di dataset che si occupa della tokenizzazione attraverso un pre-tokenizer basato su clang che alimenta un modello che applica Byte Pair Encoding per produrre token adatti per un modello VulBERTa.
+Infine, è stato condotto il fine-tuning di diverse configurazioni del modello. La valutazione conclusiva si focalizza sull'analisi della capacità di generalizzazione dell'architettura proposta, esaminando un insieme eterogeneo di metriche di performance. Tale approccio mira a verificare l'idoneità del sistema nel discriminare pattern di vulnerabilità, ponendo particolare attenzione al bilanciamento tra sensibilità e tasso di falsi positivi.
