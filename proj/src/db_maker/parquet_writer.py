@@ -12,16 +12,18 @@ class IncrementalDBWriter:
         self.schema = pa.schema({
             "ids": pa.list_(pa.uint32()),
             "attention_mask": pa.list_(pa.uint32()),
+            "hash": pa.uint64(),
             "labels": pa.uint8()
         })
 
-    def write_batch(self, encodings: Dict[str, List[List[int]]], labels: List[int]):
+    def write_batch(self, encodings: Dict[str, List[List[int]]], hashes: List[int], labels: List[int]):
         if len(labels) == 0:
             return
 
         table = pa.table({
             "ids": pa.array(encodings["ids"], type=pa.list_(pa.uint32())),
             "attention_mask": pa.array(encodings["attention_mask"], type=pa.list_(pa.uint32())),
+            "hash": pa.array(hashes, type=pa.uint64()),
             "labels": pa.array(labels, type=pa.uint8())
         }, schema=self.schema)
 

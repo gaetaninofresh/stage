@@ -1,15 +1,9 @@
 import re
 import queue
-import signal
-import os
-from multiprocessing import Pool
-from typing import List, Tuple, Dict, Any, Literal
+import hashlib
+from typing import Dict, Literal
 from decompiler.decompile import Decompiler
 from tokenizer import load_tokenizer
-import traceback
-import hashlib
-from collections import deque
-from multiprocessing import Manager
 import traceback
 from parquet_writer import IncrementalDBWriter
 _tokenizer = None
@@ -53,21 +47,30 @@ def decompile_bin(bin_path, out_queue, filters):
                     if not code:
                         continue
                     else:
+                        code_hash = int.from_bytes(
+                            hashlib.blake2b(
+                                code.encode(encoding='utf-8',
+                                            errors='replace'),
+                                digest_size=8
+                            ).digest(),
+                            byteorder='little'
+                        )
                         func_buffer['code'].append(code)
-                        func_buffer['hash'].append(hash(code))
+                        func_buffer['hash'].append(code_hash)
                     # Push data to tokenizer's queue
                     if len(func_buffer['code']) > CHUNK_SIZE:
                         out_queue.put(
                             {'code': func_buffer['code'], 'hash': func_buffer['hash'], 'bin': bin_path, 'done': False})
                         func_buffer = {'code': [], 'hash': []}
-                except Exception:
-                    continue
+                except Exception as e:
+                    print(f'--- Exception during function decompilation: {e}')
+                continue
             # clear buffer
             out_queue.put(
                 {'code': func_buffer['code'], 'hash': func_buffer['hash'], 'bin': bin_path, 'done': True})
 
     except Exception as e:
-        print(f'--- Exception during decompilation: {e}')
+        print(f'--- Exception during binary decompilation: {e}')
         raise
 
 
@@ -99,6 +102,10 @@ def consumer_tokenize(
                     flush_buffer = True
             else:
                 code = item['code']
+                if not code:
+                    if item['done']:
+                        done_queue.put(item['bin'])
+                    continue
                 code_hash = item['hash']
                 bin_path = item['bin']
 
@@ -141,13 +148,14 @@ def consumer_tokenize(
 
                     data = {
                         'ids': ids,
-                        'attention_mask': masks,
-                        'hash': batch_hash
+                        'attention_mask': masks
                     }
+                    hashes = [hash for hash in batch_hash]
 
                     # Write to parquet
                     writer.write_batch(
                         data,
+                        hashes,
                         labels=[0 if label_mode == 'safe' else 1] * len(ids)
                     )
 
