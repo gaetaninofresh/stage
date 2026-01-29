@@ -1,4 +1,5 @@
 from tokenizers import processors, pre_tokenizers
+import tempfile
 from tokenizers import normalizers, decoders
 from tokenizers import Tokenizer
 from tokenizers.models import BPE
@@ -10,6 +11,13 @@ from tokenizers.pre_tokenizers import PreTokenizer
 from tokenizers.pre_tokenizers import Whitespace
 from tokenizers import NormalizedString, PreTokenizedString
 from typing import List
+import os
+
+tmp = tempfile.mkdtemp(prefix="binproc_")
+os.environ["TMPDIR"] = tmp
+os.environ["TEMP"] = tmp
+os.environ["TMP"] = tmp
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 if cindex.Config.library_file is None:
     cindex.Config.set_library_file('/usr/lib/llvm-15/lib/libclang.so')
@@ -41,9 +49,9 @@ class ClangTokenizer:
         pretok.split(self.clang_split)
 
 
-def load_tokenizer():
+def load_tokenizer(path):
     vocab, merges = BPE.read_file(
-        vocab="./vulberta_tokenizer_config/drapgh-vocab.json", merges="./vulberta_tokenizer_config/drapgh-merges.txt")
+        vocab=path + "vulberta_tokenizer_config/drapgh-vocab.json", merges=path + "/vulberta_tokenizer_config/drapgh-merges.txt")
     tokenizer = Tokenizer(
         BPE(vocab, merges, unk_token="<unk>"))
 
