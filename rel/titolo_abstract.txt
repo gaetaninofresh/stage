@@ -1,0 +1,13 @@
+Addestramento e valutazione di modelli per il riconoscimento di funzioni estratte tramite decompilazione.
+
+Training and model evaluation for vulnerable function recognition from decompiled code.
+
+
+La presente tesi si propone di indagare l'applicabilità di modelli già affermati per il riconoscimento di codice sorgente vulnerabile su codice estratto tramite decompilazione.
+
+
+
+
+La presente tesi si propone di indagare l'applicabilità di un fine-tuning VulBERTa in contesti closed-source.
+Il lavoro presenta lo sviluppo di una pipeline utilizzabile sia per la costruzione di dataset etichettati che per la valutazione di singoli binari. Il sistema integra radare2 per l'estrazione di funzioni in massa, con filtri modulari atti a ridurre gli artefatti tipici della decompilazione. Successivamente i dati estratti passano attraverso un modulo di pre-processing che utilizza un tokenizzatore basato su clang che normalizza e codifica in forma vettoriale il codice utilizzando Byte-Pair Encoding.
+
