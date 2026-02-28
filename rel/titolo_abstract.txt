@@ -1,8 +1,16 @@
-Addestramento e valutazione di modelli per il riconoscimento di vulnerabilità in contesti closed-source. 
+Addestramento e valutazione di modelli per il riconoscimento di vulnerabilità in binari compilati. 
 
-ML models training and evaluation for vulnerable code recognition in closed-source scenarios.
-
-
-La presente tesi si propone di presentare lo sviluppo di una pipeline end-to-end per l'individuazione di vulnerabilità in contesti closed source attraverso tecniche di analisi statica associate a modelli di machine learning per la classificazione.
-La pipeline consiste in un modulo per la decompilazione che sfrutta radare2 per estrarre e filtrare funzioni provenienti dai dataset Juliet e Binpool. Il codice C++ risultante viene processato da un modulo per la costruzione di dataset che si occupa della tokenizzazione attraverso un pre-tokenizer basato su clang che alimenta un modello che applica Byte Pair Encoding per produrre token adatti per un modello VulBERTa.
+La presente tesi si propone di presentare lo sviluppo di una pipeline end-to-end per l'individuazione di vulnerabilità in binari compilati, usando tecniche di analisi statica associate a modelli di machine learning per la classificazione.
+La pipeline consiste in un modulo per la decompilazione che sfrutta radare2 per estrarre e filtrare funzioni provenienti dai dataset Juliet e Binpool. Il codice C++ risultante viene processato da un modulo per l'estrapolazione di dataset, composti da sequenze di token adatte per un modello VulBERTa, attraverso un pre-tokenizer basato su clang che alimenta un modello che sfrutta Byte Pair Encoding.
 Infine, è stato condotto il fine-tuning di diverse configurazioni del modello. La valutazione conclusiva si focalizza sull'analisi della capacità di generalizzazione dell'architettura proposta, esaminando un insieme eterogeneo di metriche di performance. Tale approccio mira a verificare l'idoneità del sistema nel discriminare pattern di vulnerabilità, ponendo particolare attenzione al bilanciamento tra sensibilità e tasso di falsi positivi.
+
+
+ML models training and evaluation for vulnerable code recognition in compiled binaries.
+
+This thesis presents the development of an end-to-end pipeline for vulnerability detection in compiled binaries, leveraging static analysis techniques combined with machine learning models for classification.
+The pipeline includes a decompilation module that uses radare2 to extract and filter functions from the Juliet and Binpool datasets. The resulting C++ code is processed by a dataset extraction module, which generates token sequences suitable for a VulBERTa model through a clang-based pre-tokenizer that feeds a model employing Byte Pair Encoding.
+Finally, several model configurations were fine-tuned. The final evaluation focuses on analyzing the generalization capability of the proposed architecture by examining a heterogeneous set of performance metrics. This approach aims to assess the system’s effectiveness in discriminating vulnerability patterns, with particular attention to the balance between sensitivity and false positive rate.
+
+
+
+

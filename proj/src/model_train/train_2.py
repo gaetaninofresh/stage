@@ -133,14 +133,15 @@ def evaluate(
         print(
             f"Recall@FPR≤{int(fpr*100):2d}% : "
             f"{recall_fpr[fpr]:.4f} "
-            f"(thr={thresholds_fpr[fpr]})"
+            f"(threshold={thresholds_fpr[fpr]:.4f})"
         )
     print("-" * 72)
     print(
-        f"F2@0.5: {f2:.4f} | "
-        f"Recall: {recall:.4f} | "
-        f"Precision: {precision:.4f}"
+        f"F2@threshold=0.5: {f2:.4f} | "
+        f"Recall@0.5: {recall:.4f} | "
+        f"Precision@0.5: {precision:.4f}"
     )
+    print("(Note: Metrics above use fixed threshold=0.5 for diagnostics)")
     print(f"ROC-AUC: {auc:.4f}")
     print(f"FN: {fn} | TP: {tp}")
     print("=" * 72 + "\n")
@@ -179,7 +180,7 @@ def train_vulberta(
 
     ACCUMULATION_STEPS = 16
     model.to(device)
-    scaler = torch.cuda.amp.GradScaler()
+    scaler = torch.amp.GradScaler()
 
     writer = SummaryWriter(log_dir=os.path.join(out_dir, "runs"))
     optimizer = AdamW(model.parameters(), lr=3e-5, weight_decay=0.01)
@@ -214,7 +215,7 @@ def train_vulberta(
             attention_mask = batch["attention_mask"].to(device)
             labels = batch["labels"].to(device)
 
-            with torch.cuda.amp.autocast():
+            with torch.amp.autocast(device_type='cuda'):
                 outputs = model(input_ids, attention_mask=attention_mask)
                 loss = criterion(outputs.logits, labels)
                 loss = loss / ACCUMULATION_STEPS
@@ -254,8 +255,13 @@ def train_vulberta(
                 metrics["recall_fpr"][fpr],
                 epoch
             )
+            writer.add_scalar(
+                f"Val/Threshold@FPR_{int(fpr*100)}",
+                metrics["thresholds_fpr"][fpr],
+                epoch
+            )
 
-        writer.add_scalar("Val/F2", metrics["f2"], epoch)
+        writer.add_scalar("Val/F2@0.5", metrics["f2"], epoch)
         writer.add_scalar("Val/AUC", metrics["auc"], epoch)
         writer.add_scalar("Val/FN", metrics["fn"], epoch)
 
@@ -264,27 +270,27 @@ def train_vulberta(
                 "epoch": epoch + 1,
                 "train_loss": avg_loss,
                 **{
-                    f"recall_fpr_{int(fpr*100)}": metrics["recall_fpr"][fpr]
+                    f"recall_fpr_{int(fpr*100)}": float(metrics["recall_fpr"][fpr])
                     for fpr in fpr_targets
                 },
-                "f2": metrics["f2"],
-                "auc": metrics["auc"],
-                "fn": metrics["fn"],
+                **{
+                    f"threshold_fpr_{int(fpr*100)}": float(metrics["thresholds_fpr"][fpr])
+                    for fpr in fpr_targets
+                },
+                "f2": float(metrics["f2"]),
+                "auc": float(metrics["auc"]),
+                "fn": int(metrics["fn"]),
             },
             filename=os.path.join(out_dir, "training_logs.jsonl")
         )
 
         # -------------------------
-        # Early stopping
+        # Model checkpoint and early stopping
         # -------------------------
         current_recall = metrics["recall_fpr"][main_fpr]
 
-        if epoch < warmup_epochs:
-            print(f"Warmup epoch {
-                  epoch+1}/{warmup_epochs},  skipping early stop")
-            continue
-
-        if current_recall > best_recall + 1e-3:
+        # Always save best models, even during warmup
+        if current_recall > best_recall + .0099:
             best_recall = current_recall
             patience_ctr = 0
             print(
@@ -296,6 +302,13 @@ def train_vulberta(
         else:
             patience_ctr += 1
             print(f"No improvement ({patience_ctr}/{patience})")
+
+        # Only check early stopping after warmup period
+        if epoch < warmup_epochs:
+            print(f"Warmup epoch {
+                  epoch+1}/{warmup_epochs}, skipping early stopping check")
+            patience_ctr = 0
+            continue
 
         if patience_ctr >= patience:
             print(

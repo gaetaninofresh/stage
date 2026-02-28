@@ -145,12 +145,6 @@ class Decompiler:
                 plt_f.append(f)
         return plt_f
 
-    def sym_imp_wrapper_f(self, funcs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        '''
-        Returns all functions that
-        '''
-        return []
-
     def filter_funcs(self,
                      func_list: List[Dict] | None = None,
                      exclude_plt: bool = True,

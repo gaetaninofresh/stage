@@ -5,13 +5,6 @@ from graph_tool.all import *
 import json
 
 
-# TODO:
-# - Fix no name functions
-# - Fix reloc calls
-# Issues might/should be tackled upstream in function feeding
-# - Should graph calls without control over r2 but it's already done like this atm...
-
-
 class Grapher:
 
     _default_logic_style = {
@@ -109,10 +102,6 @@ class Grapher:
     def make_logic_graph(self,
                          bbs: List[BasicBlock]
                          ) -> Graph:
-        '''
-        PLACEHOLDER
-        '''
-
         g = Graph(directed=True)
 
         start_addr = g.new_vp('int')

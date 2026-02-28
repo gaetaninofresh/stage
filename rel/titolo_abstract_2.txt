@@ -1,0 +1,12 @@
+Addestramento e valutazione di modelli per il riconoscimento di vulnerabilità in binari compilati. 
+
+La presente tesi si propone di investigare la trasferibilità e l’applicabilità di modelli di machine learning già affermati per l’analisi di vulnerabilità su codice sorgente al contesto di codice ottenuto da binari attraverso decompilazione. A tal fine, è stata sviluppata una pipeline end-to-end per l’individuazione di vulnerabilità, che combina tecniche di analisi statica con modelli di machine learnig per la classificazione.
+La pipeline consiste in un modulo per la decompilazione che usa radare2 per estrarre e filtrare funzioni provenienti dai dataset Juliet e Binpool. 
+Il codice C++ risultante viene quindi processato da un pre-tokenizer basato su clang e successivamente da un modello che sfrutta Byte Pair Encoding per produrre sequenze di token, successivamente le singole funzioni vengono etichettate per produrre dataset utili al fine tuning di modelli basati su VulBERTa.
+La fase di valutazione si concentra sull’analisi della capacità di generalizzazione dell’architettura proposta, attraverso un insieme eterogeneo di metriche di performance, con l’obiettivo di determinare in che misura modelli concepiti per il codice sorgente siano in grado di riconoscere pattern di vulnerabilità anche nel codice decompilato.
+
+ML models training and evaluation for vulnerable code recognition in compiled binaries.
+
+This thesis investigates the application of machine learning models originally designed for vulnerability analysis on source code to the context of code obtained from binaries through decompilation. To this end, an end-to-end pipeline for vulnerability detection has been developed, combining static analysis techniques with machine learning models for classification.
+The pipeline includes a decompilation module that uses radare2 to extract and filter functions from the Juliet and Binpool datasets. The resulting C++ code is then processed by a clang-based pre-tokenizer and subsequently by a model employing Byte Pair Encoding to produce token sequences. Individual functions are then labeled to construct datasets suitable for fine-tuning VulBERTa-based models.
+The evaluation focuses on analyzing the generalization capability of the proposed architecture through a heterogeneous set of performance metrics, with the objective of determining to what extent models conceived for source code are able to recognize vulnerability patterns also in decompiled code.
